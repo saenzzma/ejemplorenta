@@ -1,7 +1,9 @@
 param(
  [Parameter(Mandatory=$true)][string]$ConfigPath,
  [Parameter(Mandatory=$true)][string]$RuntimeArchive,
- [string[]]$SqlAllowedOutboundIps=@()
+ [string[]]$SqlAllowedOutboundIps=@(),
+ [ValidateRange(0,1)][int]$MinimumReplicas=0,
+ [ValidateRange(1,24)][int]$PackageAccessHours=4
 )
 $ErrorActionPreference='Stop'
 $cfg=Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
@@ -17,7 +19,7 @@ $storageKeys=AzJson -Arguments @('storage','account','keys','list','--resource-g
 $env:AZURE_STORAGE_ACCOUNT=$storageName;$env:AZURE_STORAGE_KEY=$storageKeys[0].value
 AzNone -Arguments @('storage','container','create','--name','runtime','--public-access','off','--auth-mode','key')
 AzNone -Arguments @('storage','blob','upload','--container-name','runtime','--name','talsory-demo.tgz','--file',(Resolve-Path -LiteralPath $RuntimeArchive).Path,'--overwrite','true','--auth-mode','key')
-$expiry=[DateTime]::UtcNow.AddHours(4).ToString('yyyy-MM-ddTHH:mmZ')
+$expiry=[DateTime]::UtcNow.AddHours($PackageAccessHours).ToString('yyyy-MM-ddTHH:mmZ')
 $sas=& az storage blob generate-sas --container-name runtime --name talsory-demo.tgz --permissions r --expiry $expiry --https-only --auth-mode key --output tsv --only-show-errors
 if($LASTEXITCODE -ne 0){throw 'No se pudo preparar el acceso temporal al paquete.'}
 $packageUrl="https://$storageName.blob.core.windows.net/runtime/talsory-demo.tgz?$sas"
@@ -58,7 +60,7 @@ $app=@{
      @{type='Liveness';httpGet=@{path='/health';port=8080};initialDelaySeconds=60;periodSeconds=30;failureThreshold=3}
     )
    })
-   scale=@{minReplicas=0;maxReplicas=1;rules=@(@{name='http';http=@{metadata=@{concurrentRequests='10'}}})}
+   scale=@{minReplicas=$MinimumReplicas;maxReplicas=1;rules=@(@{name='http';http=@{metadata=@{concurrentRequests='10'}}})}
   }
  }
 }
@@ -79,6 +81,6 @@ foreach($ip in ($outbound|Sort-Object -Unique)){
  AzNone -Arguments @('sql','server','firewall-rule','create','--resource-group',$cfg.resourceGroup,'--server',$cfg.sqlServer,'--name',('TalsoryApp'+$index),'--start-ip-address',$ip,'--end-ip-address',$ip)
  $index++
 }
-$result=@{url=('https://'+$deployed.properties.configuration.ingress.fqdn);resourceGroup=$cfg.resourceGroup;app=$appName;location=$cfg.location;mode='sql-outbox-local-worker';packageAccessExpiresUtc=$expiry;usesServiceBus=$false;usesPaidContainerRegistry=$false;realPayments=$false}
+$result=@{url=('https://'+$deployed.properties.configuration.ingress.fqdn);resourceGroup=$cfg.resourceGroup;app=$appName;location=$cfg.location;mode='sql-outbox-local-worker';packageAccessExpiresUtc=$expiry;minimumReplicas=$MinimumReplicas;usesServiceBus=$false;usesPaidContainerRegistry=$false;realPayments=$false}
 $result|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $privateDir 'deployment-result.json') -Encoding utf8
 $result|ConvertTo-Json

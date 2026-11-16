@@ -4,7 +4,7 @@ Implementación de los ejercicios de Talsory / Interseguro: traductor de endosos
 
 ## Demostración desplegada para hoy
 
-- Una aplicación Azure Container Apps, con imagen oficial pública `node:24-alpine`, 0 a 1 réplica.
+- Una aplicación Azure Container Apps, con imagen oficial pública `node:24-alpine` y una réplica máxima. Para mantenerla disponible durante la evaluación se configura una réplica mínima.
 - La misma URL sirve React y la API Hapi. El servicio Go y el simulador INARI escuchan únicamente dentro del contenedor.
 - Azure SQL Database **nueva y exclusiva `talsory`**, con oferta gratuita y `AutoPause` al agotar la cuota. No se accede a otras bases.
 - Un Blob privado contiene el paquete de ejecución; un SAS de lectura temporal permite iniciar el contenedor.
@@ -85,6 +85,8 @@ Antes de producción hacen falta identidad real, autorización por cliente y pó
 - `infra/bootstrap.ps1`: grupo aislado, nueva BD gratuita, esquema y configuración inicial.
 - `infra/package-runtime.ps1`: paquete de ejecución sin secretos.
 - `infra/deploy-demo.ps1`: almacenamiento privado, acceso temporal al paquete y Container Apps sin ACR ni Service Bus.
+
+Para una ventana de evaluación continua, el script permite `-MinimumReplicas 1` y `-PackageAccessHours` entre 1 y 24. La primera opción evita el reposo por inactividad; la segunda permite que los nuevos arranques descarguen el paquete durante la ventana configurada. Estas opciones no crean un apagado automático al finalizar el plazo.
 
 Los Dockerfiles se entregan; Docker Desktop local no estuvo operativo para construirlos. El despliegue temporal utiliza la imagen pública oficial de Node y el ejecutable Go compilado para Linux/amd64 con `CGO_ENABLED=0`.
 
