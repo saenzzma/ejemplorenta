@@ -1,0 +1,22 @@
+FROM golang:1.27-alpine AS go-build
+WORKDIR /src
+COPY routes/ ./
+RUN go test ./... && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /routes .
+FROM node:24-alpine AS web-build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY web ./web
+COPY vite.config.js ./
+RUN npm run build && npm prune --omit=dev
+FROM node:24-alpine
+WORKDIR /app
+ENV PORT=8080 NODE_ENV=production
+COPY --from=web-build --chown=node:node /app/node_modules ./node_modules
+COPY --from=web-build --chown=node:node /app/dist ./dist
+COPY --from=go-build --chown=node:node /routes ./bin/routes
+COPY --chown=node:node package.json ./
+COPY --chown=node:node src ./src
+USER node
+EXPOSE 8080
+CMD ["node","src/demo.js"]

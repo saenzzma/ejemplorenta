@@ -1,0 +1,9 @@
+node_modules
+.git
+.env*
+bin
+dist
+test
+infra
+docs
+scripts

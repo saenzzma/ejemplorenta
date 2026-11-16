@@ -1,0 +1,140 @@
+{
+  "baseJson": {
+    "financialPlansEntity": {},
+    "currency": {},
+    "productEntity": {},
+    "eventEntity": { "description": "SolicitarEndoso", "dynamicData": [] },
+    "riskUnitEntities": [
+      {
+        "insuranceObjectEntities": [
+          {
+            "insuranceObjectNumber": "1",
+            "coverageEntities": [],
+            "participationEntities": []
+          }
+        ],
+        "plansEntity": {},
+        "riskUnitNumber": "1"
+      }
+    ],
+    "participationEntities": []
+  },
+  "mappings": [
+    {
+      "sourceKey": "policyNumber",
+      "targetPath": "policyNumber",
+      "required": true,
+      "valueType": "string"
+    },
+    {
+      "sourceKey": "idEnvio",
+      "targetPath": "idEnvio",
+      "required": true,
+      "valueType": "number"
+    },
+    {
+      "sourceKey": "frecuencia",
+      "targetPath": "financialPlansEntity.description",
+      "required": true,
+      "valueType": "string"
+    },
+    {
+      "sourceKey": "moneda",
+      "targetPath": "currency.description",
+      "required": true,
+      "defaultValue": "Nuevo Sol",
+      "valueType": "string"
+    },
+    {
+      "sourceKey": "producto",
+      "targetPath": "productEntity.description",
+      "required": true,
+      "valueType": "string"
+    },
+    {
+      "sourceKey": "producto",
+      "label": "ProductosVida",
+      "required": true,
+      "valueType": "string"
+    },
+    {
+      "sourceKey": "usuario",
+      "label": "NombreUsuario",
+      "required": true,
+      "valueType": "string"
+    },
+    {
+      "sourceKey": "policyNumber",
+      "label": "NumeroPolizaEndoso",
+      "required": true,
+      "valueType": "string"
+    },
+    {
+      "label": "TipoEndosoPol",
+      "defaultValue": "Endoso Simple",
+      "valueType": "string"
+    },
+    {
+      "label": "ResponsableAtencion",
+      "defaultValue": "SAC",
+      "valueType": "string"
+    },
+    {
+      "label": "EndosoModifPrima",
+      "defaultValue": "Si",
+      "valueType": "string"
+    },
+    {
+      "label": "InicioVigenciaEndoso",
+      "defaultValue": "Default",
+      "valueType": "string"
+    },
+    {
+      "label": "TipoVigenciaEndoso",
+      "defaultValue": "",
+      "valueType": "string"
+    },
+    {
+      "label": "EndososSimplesSACRumbo",
+      "defaultValue": "TES008",
+      "valueType": "string"
+    },
+    {
+      "sourceKey": "fechaSolicitud",
+      "label": "FechaSolicitud",
+      "required": true,
+      "valueType": "date"
+    },
+    {
+      "sourceKey": "fechaCliente",
+      "label": "FechaCliente",
+      "required": true,
+      "valueType": "date"
+    },
+    {
+      "sourceKey": "fechaEfectiva",
+      "label": "FechaEfectiva",
+      "required": true,
+      "valueType": "date"
+    },
+    {
+      "sourceKey": "plan",
+      "targetPath": "riskUnitEntities.0.plansEntity.description",
+      "required": true,
+      "valueType": "string"
+    }
+  ],
+  "events": [
+    { "description": "SolicitarEndoso", "orderEvent": 1 },
+    { "description": "AprobarEndoso", "orderEvent": 2 }
+  ],
+  "templates": [
+    { "product": "Rumbo", "endorsement": "CambioFrecuencia", "version": 1 },
+    {
+      "product": "VidaDemo",
+      "endorsement": "CambioFrecuencia",
+      "version": 1,
+      "defaultOverrides": { "currency.description": "Dólar" }
+    }
+  ]
+}
