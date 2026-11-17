@@ -24,7 +24,7 @@ async function call(
       ...headers,
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
-    signal: AbortSignal.timeout(65000),
+    signal: AbortSignal.timeout(125000),
   });
   const data = await response.json();
   return { status: response.status, data };

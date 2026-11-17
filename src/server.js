@@ -20,7 +20,7 @@ export async function createServer({
     host: "0.0.0.0",
     routes: {
       payload: { maxBytes: 262144 },
-      timeout: { server: 65000 },
+      timeout: { server: 120000 },
       security: { hsts: true, xframe: true, noOpen: true, noSniff: true },
       cors: false,
     },

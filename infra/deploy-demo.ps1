@@ -3,7 +3,7 @@ param(
  [Parameter(Mandatory=$true)][string]$RuntimeArchive,
  [string[]]$SqlAllowedOutboundIps=@(),
  [ValidateRange(0,1)][int]$MinimumReplicas=0,
- [ValidateRange(1,24)][int]$PackageAccessHours=4
+ [ValidateRange(1,168)][int]$PackageAccessHours=4
 )
 $ErrorActionPreference='Stop'
 $cfg=Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
@@ -46,7 +46,7 @@ $app=@{
   template=@{
    containers=@(@{
     name='demo';image='docker.io/library/node:24-alpine';command=@('/bin/sh');args=@('-c',$boot)
-    resources=@{cpu=0.5;memory='1Gi'}
+    resources=@{cpu=0.25;memory='0.5Gi'}
     env=@(
      @{name='PORT';value='8080'},@{name='NODE_ENV';value='production'},
      @{name='SQL_SERVER';value=($cfg.sqlServer+'.database.windows.net')},@{name='SQL_DATABASE';value='talsory'},

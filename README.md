@@ -2,18 +2,20 @@
 
 Implementación de los ejercicios de Talsory / Interseguro: traductor de endosos en Node.js + Hapi, rutas óptimas en Go y una demostración de préstamos con control de duplicados. Frontend en React.
 
-## Demostración desplegada para hoy
+## Demostración desplegada
 
 - Una aplicación Azure Container Apps, con imagen oficial pública `node:24-alpine` y una réplica máxima. Para mantenerla disponible durante la evaluación se configura una réplica mínima.
 - La misma URL sirve React y la API Hapi. El servicio Go y el simulador INARI escuchan únicamente dentro del contenedor.
 - Azure SQL Database **nueva y exclusiva `talsory`**, con oferta gratuita y `AutoPause` al agotar la cuota. No se accede a otras bases.
 - Un Blob privado contiene el paquete de ejecución; un SAS de lectura temporal permite iniciar el contenedor.
-- El Outbox de SQL funciona como cola durable y un worker local la procesa. **Esta demostración no utiliza Azure Service Bus ni ACR.**
+- El Outbox de SQL funciona como cola durable y un worker local lo procesa al iniciar y al recibir nuevas operaciones. Al quedar vacío no mantiene consultas periódicas. **Esta demostración no utiliza Azure Service Bus ni ACR.**
 - Los préstamos y desembolsos son ficticios. No hay integración con INARI, bancos o sistemas de pagos reales.
 
 El SAS no es un mecanismo de eliminación: al vencer puede impedir nuevos arranques, mientras una réplica ya activa puede continuar. Los recursos permanecen en el grupo hasta eliminarlos expresamente.
 
-Esta modalidad reduce el costo para una prueba de unas horas. Usa cuotas gratuitas de cómputo y SQL, más un volumen pequeño de almacenamiento y transferencias. No representa una garantía de factura cero si ya se consumieron las cuotas de la suscripción. No se crearon ACR Basic ni Service Bus Standard.
+La réplica integrada reserva 0,25 vCPU y 0,5 GiB. Usa cuotas gratuitas de cómputo y SQL, más un volumen pequeño de almacenamiento y transferencias. No representa una garantía de factura cero si ya se consumieron las cuotas de la suscripción. No se crearon ACR Basic ni Service Bus Standard.
+
+Las conexiones SQL se liberan cuando quedan inactivas para permitir la pausa de la BD. La primera consulta después de una pausa puede tardar mientras SQL reanuda; el establecimiento y la adquisición de conexiones tienen reintentos acotados, sin volver a ejecutar escrituras de negocio. Al agotar la cuota gratuita mensual, SQL conserva la protección `AutoPause`.
 
 El entorno utilizado es Express: no admite sufijos de revisión personalizados ni publica las IP de salida en los campos habituales. Se comprobó la IPv4 desde el contenedor y se agregó únicamente esa dirección al firewall de la BD nueva. Si otro arranque cambia la salida, habrá que actualizar esa regla. El script acepta `-SqlAllowedOutboundIps` para ese caso y se detiene si no puede identificar una dirección; no abre la BD para todo Azure.
 
@@ -30,7 +32,7 @@ go test ./...
 Pop-Location
 ```
 
-Se incluyen 11 pruebas Node y 7 pruebas Go. `scripts/smoke.js` verifica contra un despliegue: JWT, plantillas reales en la BD nueva, transformación, Go, error controlado, cinco peticiones concurrentes, conciliación del 502 e idempotencia.
+Se incluyen 18 pruebas Node y 7 pruebas Go. `scripts/smoke.js` verifica contra un despliegue: JWT, plantillas reales en la BD nueva, transformación, Go, error controlado, cinco peticiones concurrentes, conciliación del 502 e idempotencia.
 
 ```powershell
 node scripts/smoke.js https://URL-DEMO RUTA-CONFIG-PRIVADA RUTA-REPORTE.json
@@ -65,7 +67,7 @@ La API Hapi transmite el JWT al proceso Go interno. Go verifica firma HS256, emi
 
 Cada clave recibida se vincula a su operación y hash. Reutilizar una clave con otro préstamo devuelve 409. La intención de préstamo también tiene una restricción única, para impedir que claves distintas creen operaciones duplicadas. La referencia del simulador tiene una clave primaria y su registro se hace en una transacción.
 
-Una redelivery o una caída entre el efecto y la confirmación se resuelve consultando la referencia. Si el resultado no puede confirmarse, el estado pasa a `EN_REVISION`; no se ordena otro desembolso a ciegas. En la demostración, el worker procesa el Outbox después de que la aplicación despierta. Si la réplica escala a cero, los trabajos pendientes esperan al siguiente arranque.
+Una redelivery o una caída entre el efecto y la confirmación se resuelve consultando la referencia. Si el resultado no puede confirmarse, el estado pasa a `EN_REVISION`; no se ordena otro desembolso a ciegas. En la demostración, el worker drena el Outbox al iniciar y después de aceptar operaciones, incluyendo los eventos de conciliación que se generen. Ante fallos conserva el trabajo y programa reintentos con espera creciente, hasta cinco minutos entre intentos. Sin pendientes no consulta SQL. Si se configura escala a cero, los trabajos pendientes esperan al siguiente arranque.
 
 `POST /api/v1/demo/loans` solo genera casos ficticios con monto fijo en esta demostración. No es un endpoint de aprobación de créditos para producción.
 
@@ -86,7 +88,7 @@ Antes de producción hacen falta identidad real, autorización por cliente y pó
 - `infra/package-runtime.ps1`: paquete de ejecución sin secretos.
 - `infra/deploy-demo.ps1`: almacenamiento privado, acceso temporal al paquete y Container Apps sin ACR ni Service Bus.
 
-Para una ventana de evaluación continua, el script permite `-MinimumReplicas 1` y `-PackageAccessHours` entre 1 y 24. La primera opción evita el reposo por inactividad; la segunda permite que los nuevos arranques descarguen el paquete durante la ventana configurada. Estas opciones no crean un apagado automático al finalizar el plazo.
+Para una ventana de evaluación continua, el script permite `-MinimumReplicas 1` y `-PackageAccessHours` entre 1 y 168. La primera opción evita el reposo por inactividad; la segunda permite que los nuevos arranques descarguen el paquete durante la ventana configurada. Estas opciones no crean un apagado automático al finalizar el plazo.
 
 Los Dockerfiles se entregan; Docker Desktop local no estuvo operativo para construirlos. El despliegue temporal utiliza la imagen pública oficial de Node y el ejecutable Go compilado para Linux/amd64 con `CGO_ENABLED=0`.
 
